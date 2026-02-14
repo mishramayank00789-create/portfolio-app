@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portfolio Dashboard - Complete Investment Tracker</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body { margin: 0; padding: 0; overflow-x: hidden; }
+    #root { min-height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // Icons (same as before)
+    const TrendingUp = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>;
+    const TrendingDown = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>;
+    const DollarSign = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>;
+    const PieChart = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>;
+    const Activity = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
+    const RefreshCw = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>;
+    const Globe = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>;
+    const Briefcase = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>;
+    const Target = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>;
+    const Save = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>;
+    const List = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>;
+    const Wallet = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>;
+
+    const PortfolioDashboard = () => {
+      const [activeTab, setActiveTab] = useState('overview');
+      const [portfolioData, setPortfolioData] = useState({});
+      const [loading, setLoading] = useState(false);
+      const [lastUpdated, setLastUpdated] = useState(new Date());
+      const [apiKey, setApiKey] = useState('');
+      const [sheetId, setSheetId] = useState('');
+      const [tempApiKey, setTempApiKey] = useState('');
+      const [tempSheetId, setTempSheetId] = useState('');
+      const [isConfigured, setIsConfigured] = useState(false);
+      const [saveMessage, setSaveMessage] = useState('');
+
+      useEffect(() => {
+        const savedApiKey = localStorage.getItem('GOOGLE_API_KEY');
+        const savedSheetId = localStorage.getItem('SHEET_ID') || '1B5c8Heb0QykY8X_-c9m6YSutCXWXCGn5HvAkEpUOpEA';
+        
+        if (savedApiKey) {
+          setApiKey(savedApiKey);
+          setTempApiKey(savedApiKey);
+          setIsConfigured(true);
+        }
+        
+        setSheetId(savedSheetId);
+        setTempSheetId(savedSheetId);
+      }, []);
+
+      // All your sheet tabs
+      const sheets = {
+        activeSummary: 'Active Investment - Summary',
+        totalInvestment: 'Total Investment - Summary',
+        totalWealth: 'Total Wealth - Summary',
+        mutualFunds: 'Mutual Funds - Direct Holdings',
+        mutualFundsTransactions: 'Mutual Funds - Transactions',
+        usHoldings: 'US Holdings',
+        usTransactions: 'US Holdings - Transactions',
+        xirr: 'XIRR',
+        goldHoldings: 'UAE - Gold Holdings',
+        carryForwardUS: 'Carry Forward US Holdings - 202',
+        scripboxHoldings: 'Scripbox Holdings - Regular',
+        cashHoldings: 'Cash Holdings',
+        others: 'Others',
+        goals: 'Goal Tracker',
+        benchmarkData: 'Benchmark Data'
+      };
+
+      const saveCredentials = () => {
+        if (!tempApiKey || tempApiKey.trim() === '') {
+          setSaveMessage('❌ Please enter an API Key');
+          setTimeout(() => setSaveMessage(''), 3000);
+          return;
+        }
+
+        localStorage.setItem('GOOGLE_API_KEY', tempApiKey.trim());
+        localStorage.setItem('SHEET_ID', tempSheetId.trim() || '1B5c8Heb0QykY8X_-c9m6YSutCXWXCGn5HvAkEpUOpEA');
+        
+        setApiKey(tempApiKey.trim());
+        setSheetId(tempSheetId.trim() || '1B5c8Heb0QykY8X_-c9m6YSutCXWXCGn5HvAkEpUOpEA');
+        setIsConfigured(true);
+        
+        setSaveMessage('✅ Settings saved! Click "Sync Data" to load your portfolio.');
+        setTimeout(() => setSaveMessage(''), 5000);
+      };
+
+      const fetchSheetData = async (sheetName, range = 'A1:Z1000') => {
+        if (!apiKey) return null;
+
+        const currentSheetId = sheetId || '1B5c8Heb0QykY8X_-c9m6YSutCXWXCGn5HvAkEpUOpEA';
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${currentSheetId}/values/${sheetName}!${range}?key=${apiKey}`;
+        
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            const error = await response.json();
+            console.error(`Error fetching ${sheetName}:`, error);
+            return null;
+          }
+          const data = await response.json();
+          return data.values;
+        } catch (error) {
+          console.error(`Error fetching ${sheetName}:`, error);
+          return null;
+        }
+      };
+
+      const parseSheetData = (rows) => {
+        if (!rows || rows.length < 2) return [];
+        const headers = rows[0];
+        return rows.slice(1).map(row => {
+          const obj = {};
+          headers.forEach((header, index) => {
+            obj[header] = row[index] || '';
+          });
+          return obj;
+        }).filter(row => {
+          // Filter out completely empty rows
+          return Object.values(row).some(val => val && val.toString().trim() !== '');
+        });
+      };
+
+      const loadPortfolioData = async () => {
+        if (!apiKey) {
+          alert('Please configure your API Key in the Settings tab first!');
+          setActiveTab('settings');
+          return;
+        }
+
+        setLoading(true);
+        try {
+          console.log('Fetching all sheets...');
+          
+          // Fetch all sheets in parallel
+          const [
+            activeSummaryData,
+            totalInvestmentData,
+            totalWealthData,
+            mutualFundsData,
+            mutualFundsTransData,
+            usHoldingsData,
+            usTransData,
+            xirrData,
+            goldData,
+            cashData,
+            goalsData,
+            othersData,
+            scripboxData
+          ] = await Promise.all([
+            fetchSheetData(sheets.activeSummary),
+            fetchSheetData(sheets.totalInvestment),
+            fetchSheetData(sheets.totalWealth),
+            fetchSheetData(sheets.mutualFunds),
+            fetchSheetData(sheets.mutualFundsTransactions),
+            fetchSheetData(sheets.usHoldings),
+            fetchSheetData(sheets.usTransactions),
+            fetchSheetData(sheets.xirr),
+            fetchSheetData(sheets.goldHoldings),
+            fetchSheetData(sheets.cashHoldings),
+            fetchSheetData(sheets.goals),
+            fetchSheetData(sheets.others),
+            fetchSheetData(sheets.scripboxHoldings)
+          ]);
+
+          const parsed = {
+            activeSummary: parseSheetData(activeSummaryData),
+            totalInvestment: parseSheetData(totalInvestmentData),
+            totalWealth: parseSheetData(totalWealthData),
+            mutualFunds: parseSheetData(mutualFundsData),
+            mutualFundsTransactions: parseSheetData(mutualFundsTransData),
+            usHoldings: parseSheetData(usHoldingsData),
+            usTransactions: parseSheetData(usTransData),
+            xirr: parseSheetData(xirrData),
+            gold: parseSheetData(goldData),
+            cash: parseSheetData(cashData),
+            goals: parseSheetData(goalsData),
+            others: parseSheetData(othersData),
+            scripbox: parseSheetData(scripboxData)
+          };
+
+          setPortfolioData(parsed);
+          setLastUpdated(new Date());
+          console.log('All data loaded successfully!', parsed);
+          alert('✅ Data synced successfully from all sheets!');
+        } catch (error) {
+          console.error('Error loading portfolio data:', error);
+          alert('Error loading data. Check console for details.');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const formatCurrency = (amount) => {
+        if (!amount || isNaN(amount)) return '₹0';
+        return new Intl.NumberFormat('en-IN', {
+          style: 'currency',
+          currency: 'INR',
+          maximumFractionDigits: 0
+        }).format(amount);
+      };
+
+      const formatPercentage = (value) => {
+        if (!value || isNaN(value)) return '0%';
+        return `${value >= 0 ? '+' : ''}${parseFloat(value).toFixed(2)}%`;
+      };
+
+      const parseNumber = (val) => {
+        if (!val) return 0;
+        const num = parseFloat(val.toString().replace(/[^0-9.-]/g, ''));
+        return isNaN(num) ? 0 : num;
+      };
+
+      const StatCard = ({ title, value, change, icon: Icon, trend }) => (
+        <div className="stat-card">
+          <div className="stat-header">
+            <span className="stat-title">{title}</span>
+            <Icon className="stat-icon" size={20} />
+          </div>
+          <div className="stat-value">{value}</div>
+          {change && (
+            <div className={`stat-change ${trend}`}>
+              {trend === 'up' ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+              <span>{change}</span>
+            </div>
+          )}
+        </div>
+      );
+
+      const tabs = [
+        { id: 'overview', label: 'Overview', icon: PieChart },
+        { id: 'mutualfunds', label: 'Mutual Funds', icon: Briefcase },
+        { id: 'us', label: 'US Holdings', icon: DollarSign },
+        { id: 'cash', label: 'Cash & Others', icon: Wallet },
+        { id: 'transactions', label: 'Transactions', icon: List },
+        { id: 'goals', label: 'Goals', icon: Target },
+        { id: 'settings', label: 'Settings', icon: Globe }
+      ];
+
+      const hasData = portfolioData && Object.keys(portfolioData).length > 0;
+
+      // Calculate totals from active summary
+      const calculateTotals = () => {
+        if (!hasData || !portfolioData.activeSummary) return null;
+        
+        const summary = portfolioData.activeSummary;
+        const grandTotal = summary.find(row => 
+          row.Strategy && row.Strategy.includes('Grand Total')
+        );
+
+        if (grandTotal) {
+          return {
+            totalValue: parseNumber(grandTotal['Current Value']),
+            totalInvested: parseNumber(grandTotal['Total Invested']),
+            absoluteReturn: parseNumber(grandTotal['Absolute Return']),
+            xirr: parseNumber(grandTotal['XIRR'])
+          };
+        }
+        return null;
+      };
+
+      const totals = calculateTotals();
+
+      return (
+        <div className="dashboard-container">
+          <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+            
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+              font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+              background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+              color: #e4e4e7;
+              min-height: 100vh;
+            }
+            .dashboard-container { min-height: 100vh; position: relative; }
+            .dashboard-container::before {
+              content: '';
+              position: fixed;
+              top: 0;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              background: 
+                radial-gradient(circle at 20% 30%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(168, 85, 247, 0.08) 0%, transparent 50%);
+              pointer-events: none;
+              z-index: 0;
+            }
+            .header {
+              background: rgba(17, 24, 39, 0.6);
+              backdrop-filter: blur(20px);
+              border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+              padding: 1.25rem 2rem;
+              position: sticky;
+              top: 0;
+              z-index: 100;
+              box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            }
+            .header-content {
+              max-width: 1600px;
+              margin: 0 auto;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            .logo { display: flex; align-items: center; gap: 0.75rem; }
+            .logo h1 {
+              font-size: 1.75rem;
+              font-weight: 800;
+              background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              letter-spacing: -0.02em;
+            }
+            .header-actions { display: flex; align-items: center; gap: 1rem; }
+            .last-updated {
+              font-size: 0.875rem;
+              color: #9ca3af;
+              font-family: 'JetBrains Mono', monospace;
+            }
+            .refresh-btn, .save-btn {
+              background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+              border: none;
+              padding: 0.625rem 1.25rem;
+              border-radius: 0.5rem;
+              color: white;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              gap: 0.5rem;
+              font-weight: 600;
+              font-size: 0.875rem;
+              transition: all 0.3s ease;
+            }
+            .refresh-btn:hover, .save-btn:hover {
+              transform: translateY(-2px);
+              box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+            }
+            .refresh-btn.loading { opacity: 0.7; cursor: not-allowed; }
+            .refresh-btn.loading svg { animation: spin 1s linear infinite; }
+            @keyframes spin {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(360deg); }
+            }
+            .main-content {
+              max-width: 1600px;
+              margin: 0 auto;
+              padding: 2rem;
+              position: relative;
+              z-index: 1;
+            }
+            .tabs {
+              display: flex;
+              gap: 0.5rem;
+              margin-bottom: 2rem;
+              background: rgba(17, 24, 39, 0.4);
+              padding: 0.5rem;
+              border-radius: 0.75rem;
+              border: 1px solid rgba(99, 102, 241, 0.1);
+              overflow-x: auto;
+            }
+            .tab {
+              flex: 1;
+              min-width: fit-content;
+              background: transparent;
+              border: none;
+              padding: 0.875rem 1.5rem;
+              border-radius: 0.5rem;
+              color: #9ca3af;
+              cursor: pointer;
+              font-weight: 500;
+              font-size: 0.9375rem;
+              transition: all 0.3s ease;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 0.5rem;
+              white-space: nowrap;
+            }
+            .tab:hover { color: #e4e4e7; background: rgba(99, 102, 241, 0.05); }
+            .tab.active {
+              background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+              color: white;
+              box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+            }
+            .stats-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+              gap: 1.5rem;
+              margin-bottom: 2rem;
+            }
+            .stat-card {
+              background: rgba(17, 24, 39, 0.5);
+              backdrop-filter: blur(20px);
+              border: 1px solid rgba(99, 102, 241, 0.15);
+              border-radius: 1rem;
+              padding: 1.75rem;
+              transition: all 0.3s ease;
+            }
+            .stat-card:hover {
+              transform: translateY(-4px);
+              border-color: rgba(99, 102, 241, 0.3);
+              box-shadow: 0 12px 40px rgba(99, 102, 241, 0.2);
+            }
+            .stat-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 1rem;
+            }
+            .stat-title {
+              font-size: 0.875rem;
+              color: #9ca3af;
+              font-weight: 500;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+            }
+            .stat-icon { color: #6366f1; opacity: 0.6; }
+            .stat-value {
+              font-size: 2rem;
+              font-weight: 700;
+              color: #e4e4e7;
+              margin-bottom: 0.75rem;
+              font-family: 'JetBrains Mono', monospace;
+            }
+            .stat-change {
+              display: flex;
+              align-items: center;
+              gap: 0.375rem;
+              font-size: 0.875rem;
+              font-weight: 600;
+            }
+            .stat-change.up { color: #10b981; }
+            .stat-change.down { color: #ef4444; }
+            .chart-card {
+              background: rgba(17, 24, 39, 0.5);
+              backdrop-filter: blur(20px);
+              border: 1px solid rgba(99, 102, 241, 0.15);
+              border-radius: 1rem;
+              padding: 2rem;
+              margin-bottom: 1.5rem;
+            }
+            .card-title {
+              font-size: 1.25rem;
+              font-weight: 700;
+              margin-bottom: 1.5rem;
+              color: #e4e4e7;
+            }
+            .table-container {
+              overflow-x: auto;
+              margin-top: 1rem;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+            th, td {
+              padding: 1rem;
+              text-align: left;
+              border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+            }
+            th {
+              font-weight: 600;
+              color: #9ca3af;
+              font-size: 0.875rem;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+            }
+            td {
+              color: #e4e4e7;
+              font-family: 'JetBrains Mono', monospace;
+              font-size: 0.9375rem;
+            }
+            tr:hover {
+              background: rgba(99, 102, 241, 0.05);
+            }
+            .positive { color: #10b981; }
+            .negative { color: #ef4444; }
+            .alert-box {
+              padding: 1rem;
+              border-radius: 0.5rem;
+              margin-bottom: 1.5rem;
+              background: rgba(234, 179, 8, 0.1);
+              color: #eab308;
+              border: 1px solid rgba(234, 179, 8, 0.2);
+            }
+            .save-message {
+              padding: 1rem;
+              border-radius: 0.5rem;
+              margin-bottom: 1.5rem;
+              background: rgba(16, 185, 129, 0.1);
+              color: #10b981;
+              border: 1px solid rgba(16, 185, 129, 0.2);
+            }
+            .settings-section {
+              background: rgba(17, 24, 39, 0.5);
+              backdrop-filter: blur(20px);
+              border: 1px solid rgba(99, 102, 241, 0.15);
+              border-radius: 1rem;
+              padding: 2rem;
+            }
+            .settings-group { margin-bottom: 2rem; }
+            .settings-label {
+              display: block;
+              font-weight: 600;
+              margin-bottom: 0.75rem;
+              color: #e4e4e7;
+            }
+            .settings-input {
+              width: 100%;
+              padding: 0.875rem 1rem;
+              background: rgba(17, 24, 39, 0.8);
+              border: 1px solid rgba(99, 102, 241, 0.2);
+              border-radius: 0.5rem;
+              color: #e4e4e7;
+              font-size: 0.9375rem;
+              font-family: 'JetBrains Mono', monospace;
+            }
+            .settings-input:focus {
+              outline: none;
+              border-color: #6366f1;
+              box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            }
+            .settings-hint {
+              font-size: 0.8125rem;
+              color: #9ca3af;
+              margin-top: 0.5rem;
+              line-height: 1.5;
+            }
+            .settings-hint a { color: #6366f1; text-decoration: none; }
+            .status-indicator {
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              padding: 0.5rem 1rem;
+              border-radius: 0.5rem;
+              font-size: 0.875rem;
+              font-weight: 600;
+            }
+            .status-indicator.connected {
+              background: rgba(16, 185, 129, 0.1);
+              color: #10b981;
+            }
+            .status-indicator.disconnected {
+              background: rgba(239, 68, 68, 0.1);
+              color: #ef4444;
+            }
+            .status-dot {
+              width: 8px;
+              height: 8px;
+              border-radius: 50%;
+              background: currentColor;
+              animation: pulse 2s infinite;
+            }
+            @keyframes pulse {
+              0%, 100% { opacity: 1; }
+              50% { opacity: 0.5; }
+            }
+            @media (max-width: 640px) {
+              .tabs { flex-direction: column; }
+              .header-content { flex-direction: column; gap: 1rem; }
+              .main-content { padding: 1rem; }
+              .stats-grid { grid-template-columns: 1fr; }
+            }
+          `}</style>
+
+          <header className="header">
+            <div className="header-content">
+              <div className="logo">
+                <Activity size={32} style={{ color: '#6366f1' }} />
+                <h1>Portfolio Monitor</h1>
+              </div>
+              <div className="header-actions">
+                <span className="last-updated">
+                  Last updated: {lastUpdated.toLocaleTimeString()}
+                </span>
+                <button 
+                  className={`refresh-btn ${loading ? 'loading' : ''}`}
+                  onClick={loadPortfolioData}
+                  disabled={loading}
+                >
+                  <RefreshCw size={16} />
+                  {loading ? 'Syncing...' : 'Sync Data'}
+                </button>
+              </div>
+            </div>
+          </header>
+
+          <main className="main-content">
+            <div className="tabs">
+              {tabs.map(tab => (
+                <button
+                  key={tab.id}
+                  className={`tab ${activeTab === tab.id ? 'active' : ''}`}
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  <tab.icon size={18} />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {activeTab === 'overview' && (
+              <>
+                {!isConfigured && (
+                  <div className="alert-box">
+                    ⚠️ <strong>Setup Required:</strong> Go to Settings tab to configure your Google API Key.
+                  </div>
+                )}
+                
+                {hasData && totals ? (
+                  <>
+                    <div className="stats-grid">
+                      <StatCard
+                        title="Total Portfolio Value"
+                        value={formatCurrency(totals.totalValue)}
+                        change={formatPercentage(totals.xirr)}
+                        icon={DollarSign}
+                        trend={totals.xirr >= 0 ? 'up' : 'down'}
+                      />
+                      <StatCard
+                        title="Total Invested"
+                        value={formatCurrency(totals.totalInvested)}
+                        icon={Briefcase}
+                      />
+                      <StatCard
+                        title="Absolute Return"
+                        value={formatCurrency(totals.absoluteReturn)}
+                        change={formatPercentage((totals.absoluteReturn / totals.totalInvested) * 100)}
+                        icon={TrendingUp}
+                        trend={totals.absoluteReturn >= 0 ? 'up' : 'down'}
+                      />
+                      <StatCard
+                        title="XIRR"
+                        value={formatPercentage(totals.xirr * 100)}
+                        icon={Activity}
+                        trend={totals.xirr >= 0 ? 'up' : 'down'}
+                      />
+                    </div>
+
+                    <div className="chart-card">
+                      <h3 className="card-title">Portfolio Summary by Asset Class</h3>
+                      <div className="table-container">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Strategy</th>
+                              <th>Asset Class</th>
+                              <th>Geography</th>
+                              <th>Allocation %</th>
+                              <th>Total Invested</th>
+                              <th>Current Value</th>
+                              <th>XIRR</th>
+                              <th>Absolute Return</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {portfolioData.activeSummary.map((row, idx) => {
+                              if (!row.Strategy || row.Strategy.includes('Total')) return null;
+                              return (
+                                <tr key={idx}>
+                                  <td>{row.Strategy}</td>
+                                  <td>{row['Asset Class']}</td>
+                                  <td>{row.Geography}</td>
+                                  <td>{row['% Allocation']}</td>
+                                  <td>{formatCurrency(parseNumber(row['Total Invested']))}</td>
+                                  <td>{formatCurrency(parseNumber(row['Current Value']))}</td>
+                                  <td className={parseNumber(row.XIRR) >= 0 ? 'positive' : 'negative'}>
+                                    {formatPercentage(parseNumber(row.XIRR) * 100)}
+                                  </td>
+                                  <td className={parseNumber(row['Absolute Return']) >= 0 ? 'positive' : 'negative'}>
+                                    {formatCurrency(parseNumber(row['Absolute Return']))}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="alert-box">
+                    Click "Sync Data" to load your portfolio information.
+                  </div>
+                )}
+              </>
+            )}
+
+            {activeTab === 'mutualfunds' && (
+              <div className="chart-card">
+                <h3 className="card-title">Mutual Funds - Direct Holdings</h3>
+                {hasData && portfolioData.mutualFunds ? (
+                  <div className="table-container">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Fund Name</th>
+                          <th>Portfolio</th>
+                          <th>Asset Class</th>
+                          <th>Units Held</th>
+                          <th>Amount Invested</th>
+                          <th>Current Value</th>
+                          <th>Absolute Returns</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {portfolioData.mutualFunds.map((fund, idx) => (
+                          <tr key={idx}>
+                            <td>{fund['Fund Name']}</td>
+                            <td>{fund.Portfolio}</td>
+                            <td>{fund['Asset Class']}</td>
+                            <td>{parseNumber(fund['Units Held']).toFixed(3)}</td>
+                            <td>{formatCurrency(parseNumber(fund['Amount Invested']))}</td>
+                            <td>{formatCurrency(parseNumber(fund['Current Value']))}</td>
+                            <td className={parseNumber(fund['Absolute Returns']) >= 0 ? 'positive' : 'negative'}>
+                              {formatCurrency(parseNumber(fund['Absolute Returns']))}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="alert-box">Click "Sync Data" to load mutual funds data.</div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'us' && (
+              <div className="chart-card">
+                <h3 className="card-title">US Holdings</h3>
+                {hasData && portfolioData.usHoldings ? (
+                  <div className="table-container">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Fund Name</th>
+                          <th>Strategy</th>
+                          <th>Scheme Type</th>
+                          <th>Units Held</th>
+                          <th>Amount Invested</th>
+                          <th>Current Value</th>
+                          <th>Current Return</th>
+                          <th>MOIC</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {portfolioData.usHoldings.map((holding, idx) => {
+                          if (!holding['Fund Name']) return null;
+                          return (
+                            <tr key={idx}>
+                              <td>{holding['Fund Name']}</td>
+                              <td>{holding.Strategy}</td>
+                              <td>{holding['Scheme Type']}</td>
+                              <td>{parseNumber(holding['Units Held']).toFixed(3)}</td>
+                              <td>{formatCurrency(parseNumber(holding['Amount Invested']))}</td>
+                              <td>{formatCurrency(parseNumber(holding['Current Value']))}</td>
+                              <td className={parseNumber(holding['Current Return']) >= 0 ? 'positive' : 'negative'}>
+                                {formatPercentage(parseNumber(holding['Current Return']) * 100)}
+                              </td>
+                              <td>{holding.MOIC}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="alert-box">Click "Sync Data" to load US holdings data.</div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'cash' && (
+              <>
+                <div className="chart-card">
+                  <h3 className="card-title">Cash Holdings</h3>
+                  {hasData && portfolioData.cash ? (
+                    <div className="table-container">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Country</th>
+                            <th>Bank Name</th>
+                            <th>Scheme Type</th>
+                            <th>Currency</th>
+                            <th>Amount Invested</th>
+                            <th>Current Value (Base)</th>
+                            <th>Returns %</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {portfolioData.cash.map((cash, idx) => {
+                            if (!cash.Country) return null;
+                            return (
+                              <tr key={idx}>
+                                <td>{cash.Country}</td>
+                                <td>{cash['Bank Name']}</td>
+                                <td>{cash['Scheme Type']}</td>
+                                <td>{cash.Currency}</td>
+                                <td>{formatCurrency(parseNumber(cash['Amount Invested']))}</td>
+                                <td>{formatCurrency(parseNumber(cash['Current Value (Base)']))}</td>
+                                <td className={parseNumber(cash['Returns %']) >= 0 ? 'positive' : 'negative'}>
+                                  {formatPercentage(parseNumber(cash['Returns %']))}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="alert-box">Click "Sync Data" to load cash holdings data.</div>
+                  )}
+                </div>
+
+                {hasData && portfolioData.gold && portfolioData.gold.length > 0 && (
+                  <div className="chart-card">
+                    <h3 className="card-title">Gold Holdings</h3>
+                    <div className="table-container">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Investment Name</th>
+                            <th>Units (grams)</th>
+                            <th>Amount Invested</th>
+                            <th>Current Value</th>
+                            <th>Returns %</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {portfolioData.gold.map((gold, idx) => (
+                            <tr key={idx}>
+                              <td>{gold['Investment Name']}</td>
+                              <td>{parseNumber(gold['Units Held (gms)']).toFixed(2)} g</td>
+                              <td>{formatCurrency(parseNumber(gold['Amount Invested (INR)']))}</td>
+                              <td>{formatCurrency(parseNumber(gold['Current Investment Value (INR)']))}</td>
+                              <td className={parseNumber(gold['Returns %']) >= 0 ? 'positive' : 'negative'}>
+                                {formatPercentage(parseNumber(gold['Returns %']))}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {activeTab === 'transactions' && (
+              <>
+                <div className="chart-card">
+                  <h3 className="card-title">Mutual Funds Transactions</h3>
+                  {hasData && portfolioData.mutualFundsTransactions ? (
+                    <div className="table-container">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Fund Name</th>
+                            <th>Portfolio</th>
+                            <th>Transaction Type</th>
+                            <th>Transaction Date</th>
+                            <th>Units</th>
+                            <th>Buy NAV</th>
+                            <th>Amount</th>
+                            <th>Current NAV</th>
+                            <th>Holding Value</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {portfolioData.mutualFundsTransactions.slice(0, 20).map((txn, idx) => (
+                            <tr key={idx}>
+                              <td>{txn['Fund Name']}</td>
+                              <td>{txn.Portfolio}</td>
+                              <td>{txn['Transaction Type']}</td>
+                              <td>{txn['Transaction Date']}</td>
+                              <td>{parseNumber(txn['Units Held']).toFixed(3)}</td>
+                              <td>{parseNumber(txn['Buy NAV']).toFixed(2)}</td>
+                              <td>{formatCurrency(parseNumber(txn['Amount Value']))}</td>
+                              <td>{parseNumber(txn['Current NAV']).toFixed(2)}</td>
+                              <td>{formatCurrency(parseNumber(txn['Holding Value']))}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="alert-box">Click "Sync Data" to load transactions.</div>
+                  )}
+                </div>
+
+                {hasData && portfolioData.usTransactions && (
+                  <div className="chart-card">
+                    <h3 className="card-title">US Holdings Transactions</h3>
+                    <div className="table-container">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Fund Name</th>
+                            <th>Strategy</th>
+                            <th>Transaction Type</th>
+                            <th>Transaction Date</th>
+                            <th>Units</th>
+                            <th>Buy NAV</th>
+                            <th>Amount</th>
+                            <th>Latest Price</th>
+                            <th>Current Value</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {portfolioData.usTransactions.slice(0, 20).map((txn, idx) => {
+                            if (!txn['Fund Name']) return null;
+                            return (
+                              <tr key={idx}>
+                                <td>{txn['Fund Name']}</td>
+                                <td>{txn.Strategy}</td>
+                                <td>{txn['Transaction Type']}</td>
+                                <td>{txn['Transaction Date']}</td>
+                                <td>{parseNumber(txn['Units Held']).toFixed(3)}</td>
+                                <td>${parseNumber(txn['Buy NAV']).toFixed(2)}</td>
+                                <td>${parseNumber(txn['Amount Value']).toFixed(2)}</td>
+                                <td>${parseNumber(txn['Latest Price']).toFixed(2)}</td>
+                                <td>${parseNumber(txn['Current Value']).toFixed(2)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {activeTab === 'goals' && (
+              <div className="chart-card">
+                <h3 className="card-title">Financial Goals</h3>
+                {hasData && portfolioData.goals ? (
+                  <div className="table-container">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Goal Name</th>
+                          <th>Target Amount</th>
+                          <th>Current Value</th>
+                          <th>% Achieved</th>
+                          <th>Remaining Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {portfolioData.goals.map((goal, idx) => {
+                          const label = goal.Label || goal['Label.1'] || goal['Label.2'] || goal['Label.3'];
+                          const value = goal.Value || goal['Value.1'] || goal['Value.2'] || goal['Value / Formula'];
+                          
+                          if (!label || label.includes('Label')) return null;
+                          
+                          return (
+                            <tr key={idx}>
+                              <td>{label}</td>
+                              <td colSpan={4}>{value}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="alert-box">Click "Sync Data" to load goals data.</div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'settings' && (
+              <div className="settings-section">
+                <h3 className="card-title">Google Sheets Configuration</h3>
+                
+                {saveMessage && <div className="save-message">{saveMessage}</div>}
+
+                <div style={{ marginBottom: '2rem' }}>
+                  <div className={`status-indicator ${isConfigured ? 'connected' : 'disconnected'}`}>
+                    <span className="status-dot"></span>
+                    {isConfigured ? 'Connected to Google Sheets' : 'Not Connected - Enter API Key Below'}
+                  </div>
+                </div>
+
+                <div className="settings-group">
+                  <label className="settings-label">Google API Key *</label>
+                  <input
+                    type="text"
+                    className="settings-input"
+                    value={tempApiKey}
+                    onChange={(e) => setTempApiKey(e.target.value)}
+                    placeholder="Paste your Google API Key here"
+                  />
+                  <p className="settings-hint">
+                    Get your API key from <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a>
+                  </p>
+                </div>
+
+                <div className="settings-group">
+                  <label className="settings-label">Google Sheet ID</label>
+                  <input
+                    type="text"
+                    className="settings-input"
+                    value={tempSheetId}
+                    onChange={(e) => setTempSheetId(e.target.value)}
+                    placeholder="1B5c8Heb0QykY8X_-c9m6YSutCXWXCGn5HvAkEpUOpEA"
+                  />
+                  <p className="settings-hint">
+                    Default is already set. Change only if using a different sheet.
+                  </p>
+                </div>
+
+                <button className="save-btn" onClick={saveCredentials}>
+                  <Save size={16} />
+                  Save Settings
+                </button>
+              </div>
+            )}
+          </main>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<PortfolioDashboard />);
+  </script>
+</body>
+</html>
